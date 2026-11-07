@@ -1,0 +1,96 @@
+{
+  "count": 10,
+  "dialect": "unix",
+  "direction": "next",
+  "dst_policy": {
+    "gap": "skip",
+    "overlap": "both"
+  },
+  "exhausted": false,
+  "expression": "*/2 * * * *",
+  "note": null,
+  "runs": [
+    {
+      "dst": null,
+      "local": "2026-11-10T00:02:00+00:00",
+      "scheduled_local": null,
+      "unix": 1794268920,
+      "utc": "2026-11-10T00:02:00Z",
+      "utc_offset": "+00:00"
+    },
+    {
+      "dst": null,
+      "local": "2026-11-10T00:04:00+00:00",
+      "scheduled_local": null,
+      "unix": 1794269040,
+      "utc": "2026-11-10T00:04:00Z",
+      "utc_offset": "+00:00"
+    },
+    {
+      "dst": null,
+      "local": "2026-11-10T00:06:00+00:00",
+      "scheduled_local": null,
+      "unix": 1794269160,
+      "utc": "2026-11-10T00:06:00Z",
+      "utc_offset": "+00:00"
+    },
+    {
+      "dst": null,
+      "local": "2026-11-10T00:08:00+00:00",
+      "scheduled_local": null,
+      "unix": 1794269280,
+      "utc": "2026-11-10T00:08:00Z",
+      "utc_offset": "+00:00"
+    },
+    {
+      "dst": null,
+      "local": "2026-11-10T00:10:00+00:00",
+      "scheduled_local": null,
+      "unix": 1794269400,
+      "utc": "2026-11-10T00:10:00Z",
+      "utc_offset": "+00:00"
+    },
+    {
+      "dst": null,
+      "local": "2026-11-10T00:12:00+00:00",
+      "scheduled_local": null,
+      "unix": 1794269520,
+      "utc": "2026-11-10T00:12:00Z",
+      "utc_offset": "+00:00"
+    },
+    {
+      "dst": null,
+      "local": "2026-11-10T00:14:00+00:00",
+      "scheduled_local": null,
+      "unix": 1794269640,
+      "utc": "2026-11-10T00:14:00Z",
+      "utc_offset": "+00:00"
+    },
+    {
+      "dst": null,
+      "local": "2026-11-10T00:16:00+00:00",
+      "scheduled_local": null,
+      "unix": 1794269760,
+      "utc": "2026-11-10T00:16:00Z",
+      "utc_offset": "+00:00"
+    },
+    {
+      "dst": null,
+      "local": "2026-11-10T00:18:00+00:00",
+      "scheduled_local": null,
+      "unix": 1794269880,
+      "utc": "2026-11-10T00:18:00Z",
+      "utc_offset": "+00:00"
+    },
+    {
+      "dst": null,
+      "local": "2026-11-10T00:20:00+00:00",
+      "scheduled_local": null,
+      "unix": 1794270000,
+      "utc": "2026-11-10T00:20:00Z",
+      "utc_offset": "+00:00"
+    }
+  ],
+  "start": "2026-11-10T00:00:00+00:00",
+  "timezone": "UTC"
+}

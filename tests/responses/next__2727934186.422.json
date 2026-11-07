@@ -1,0 +1,6 @@
+{
+  "detail": {
+    "error": "unknown_timezone",
+    "message": "unknown time zone 'Mars/Base': use an IANA name such as Europe/Lisbon or America/New_York (see /v1/timezones)"
+  }
+}

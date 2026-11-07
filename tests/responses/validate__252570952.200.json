@@ -1,0 +1,137 @@
+{
+  "computable": true,
+  "dialect": "unix",
+  "error": null,
+  "expression": "0 6 * * *",
+  "fields": [
+    {
+      "any": false,
+      "field": "minute",
+      "labels": null,
+      "raw": "0",
+      "special": null,
+      "special_description": null,
+      "values": [
+        0
+      ]
+    },
+    {
+      "any": false,
+      "field": "hour",
+      "labels": null,
+      "raw": "6",
+      "special": null,
+      "special_description": null,
+      "values": [
+        6
+      ]
+    },
+    {
+      "any": true,
+      "field": "day_of_month",
+      "labels": null,
+      "raw": "*",
+      "special": null,
+      "special_description": null,
+      "values": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ]
+    },
+    {
+      "any": true,
+      "field": "month",
+      "labels": [
+        "JAN",
+        "FEB",
+        "MAR",
+        "APR",
+        "MAY",
+        "JUN",
+        "JUL",
+        "AUG",
+        "SEP",
+        "OCT",
+        "NOV",
+        "DEC"
+      ],
+      "raw": "*",
+      "special": null,
+      "special_description": null,
+      "values": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "any": true,
+      "field": "day_of_week",
+      "labels": [
+        "SUN",
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT"
+      ],
+      "raw": "*",
+      "special": null,
+      "special_description": null,
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    }
+  ],
+  "never_fires": false,
+  "never_fires_reason": null,
+  "normalized": "0 6 * * *",
+  "unsupported": null,
+  "valid": true,
+  "warnings": []
+}

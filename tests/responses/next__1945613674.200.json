@@ -1,0 +1,15 @@
+{
+  "count": 0,
+  "dialect": "unix",
+  "direction": "next",
+  "dst_policy": {
+    "gap": "shift",
+    "overlap": "first"
+  },
+  "exhausted": true,
+  "expression": "0 12 30 2 *",
+  "note": "never fires: day-of-month 30 never occurs in FEB",
+  "runs": [],
+  "start": "2026-11-10T00:00:00+00:00",
+  "timezone": "UTC"
+}

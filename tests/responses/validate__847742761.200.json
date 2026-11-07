@@ -1,0 +1,97 @@
+{
+  "computable": true,
+  "dialect": "unix",
+  "error": null,
+  "expression": "0 0 1 * MON",
+  "fields": [
+    {
+      "any": false,
+      "field": "minute",
+      "labels": null,
+      "raw": "0",
+      "special": null,
+      "special_description": null,
+      "values": [
+        0
+      ]
+    },
+    {
+      "any": false,
+      "field": "hour",
+      "labels": null,
+      "raw": "0",
+      "special": null,
+      "special_description": null,
+      "values": [
+        0
+      ]
+    },
+    {
+      "any": false,
+      "field": "day_of_month",
+      "labels": null,
+      "raw": "1",
+      "special": null,
+      "special_description": null,
+      "values": [
+        1
+      ]
+    },
+    {
+      "any": true,
+      "field": "month",
+      "labels": [
+        "JAN",
+        "FEB",
+        "MAR",
+        "APR",
+        "MAY",
+        "JUN",
+        "JUL",
+        "AUG",
+        "SEP",
+        "OCT",
+        "NOV",
+        "DEC"
+      ],
+      "raw": "*",
+      "special": null,
+      "special_description": null,
+      "values": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "any": false,
+      "field": "day_of_week",
+      "labels": [
+        "MON"
+      ],
+      "raw": "MON",
+      "special": null,
+      "special_description": null,
+      "values": [
+        1
+      ]
+    }
+  ],
+  "never_fires": false,
+  "never_fires_reason": null,
+  "normalized": "0 0 1 * MON",
+  "unsupported": null,
+  "valid": true,
+  "warnings": [
+    "both day-of-month and day-of-week are restricted: like Vixie cron, it fires when EITHER matches (Spring's scheduler requires both)"
+  ]
+}

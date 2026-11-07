@@ -1,0 +1,3 @@
+# m h dom mon dow command
+SHELL=/bin/bash
+15 4 * * * /usr/local/bin/rotate-logs

@@ -1,0 +1,6 @@
+{
+  "detail": {
+    "error": "unsupported_feature",
+    "message": "'LW' (last weekday of the month) is valid syntax but not supported for run-time computation"
+  }
+}

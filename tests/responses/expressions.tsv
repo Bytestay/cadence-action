@@ -1,0 +1,15 @@
+# dialect	zone	expression
+unix	UTC	0 3 * * 1-5
+unix	UTC	*/2 * * * *
+unix	UTC	0 12 30 2 *
+unix	UTC	61 * * * *
+unix	UTC	0 0 1 * MON
+unix	UTC	15 4 * * *
+unix	UTC	0 6 * * *
+unix	UTC	0 7 * * *
+unix	Europe/Lisbon	30 1 * * 0
+unix	Europe/Lisbon	30 1 * * SUN
+unix	Europe/Lisbon	*/10 * * * *
+unix	Mars/Base	0 3 * * *
+aws	UTC	cron(0 18 ? * MON-FRI *)
+quartz	UTC	0 0 12 LW * ?

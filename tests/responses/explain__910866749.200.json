@@ -1,0 +1,18 @@
+{
+  "description": "At 01:30, only on Sunday",
+  "dialect": "unix",
+  "expression": "30 1 * * 0",
+  "fields": {
+    "day_of_month": null,
+    "day_of_week": "only on Sunday",
+    "hour": "at 01:00",
+    "minute": "at 30 minutes past the hour",
+    "month": null,
+    "second": null,
+    "year": null
+  },
+  "fully_translated": true,
+  "locale": "en",
+  "normalized": "30 1 * * 0",
+  "time_of_day": "At 01:30"
+}

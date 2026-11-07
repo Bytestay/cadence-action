@@ -1,0 +1,116 @@
+{
+  "computable": false,
+  "dialect": "quartz",
+  "error": null,
+  "expression": "0 0 12 LW * ?",
+  "fields": [
+    {
+      "any": false,
+      "field": "second",
+      "labels": null,
+      "raw": "0",
+      "special": null,
+      "special_description": null,
+      "values": [
+        0
+      ]
+    },
+    {
+      "any": false,
+      "field": "minute",
+      "labels": null,
+      "raw": "0",
+      "special": null,
+      "special_description": null,
+      "values": [
+        0
+      ]
+    },
+    {
+      "any": false,
+      "field": "hour",
+      "labels": null,
+      "raw": "12",
+      "special": null,
+      "special_description": null,
+      "values": [
+        12
+      ]
+    },
+    {
+      "any": false,
+      "field": "day_of_month",
+      "labels": null,
+      "raw": "LW",
+      "special": "last_weekday",
+      "special_description": "last weekday (Mon-Fri) of the month",
+      "values": null
+    },
+    {
+      "any": true,
+      "field": "month",
+      "labels": [
+        "JAN",
+        "FEB",
+        "MAR",
+        "APR",
+        "MAY",
+        "JUN",
+        "JUL",
+        "AUG",
+        "SEP",
+        "OCT",
+        "NOV",
+        "DEC"
+      ],
+      "raw": "*",
+      "special": null,
+      "special_description": null,
+      "values": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ]
+    },
+    {
+      "any": true,
+      "field": "day_of_week",
+      "labels": [
+        "SUN",
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT"
+      ],
+      "raw": "?",
+      "special": null,
+      "special_description": null,
+      "values": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    }
+  ],
+  "never_fires": false,
+  "never_fires_reason": null,
+  "normalized": "0 0 12 LW * ?",
+  "unsupported": "'LW' (last weekday of the month) is valid syntax but not supported for run-time computation",
+  "valid": true,
+  "warnings": []
+}

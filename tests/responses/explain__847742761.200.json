@@ -1,0 +1,18 @@
+{
+  "description": "At 00:00, on day 1 of the month, or on Monday",
+  "dialect": "unix",
+  "expression": "0 0 1 * MON",
+  "fields": {
+    "day_of_month": "on day 1 of the month",
+    "day_of_week": "or on Monday",
+    "hour": "at 00:00",
+    "minute": null,
+    "month": null,
+    "second": null,
+    "year": null
+  },
+  "fully_translated": true,
+  "locale": "en",
+  "normalized": "0 0 1 * MON",
+  "time_of_day": "At 00:00"
+}

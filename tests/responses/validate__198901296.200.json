@@ -1,0 +1,17 @@
+{
+  "computable": null,
+  "dialect": "unix",
+  "error": {
+    "field": "minute",
+    "message": "minute: 61 is out of range 0-59",
+    "value": "61"
+  },
+  "expression": "61 * * * *",
+  "fields": null,
+  "never_fires": null,
+  "never_fires_reason": null,
+  "normalized": null,
+  "unsupported": null,
+  "valid": false,
+  "warnings": []
+}

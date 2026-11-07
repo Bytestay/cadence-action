@@ -1,0 +1,8 @@
+{
+  "detail": {
+    "error": "invalid_expression",
+    "field": "minute",
+    "message": "minute: 61 is out of range 0-59",
+    "value": "61"
+  }
+}

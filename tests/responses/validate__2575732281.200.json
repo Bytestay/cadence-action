@@ -1,0 +1,85 @@
+{
+  "computable": true,
+  "dialect": "unix",
+  "error": null,
+  "expression": "0 12 30 2 *",
+  "fields": [
+    {
+      "any": false,
+      "field": "minute",
+      "labels": null,
+      "raw": "0",
+      "special": null,
+      "special_description": null,
+      "values": [
+        0
+      ]
+    },
+    {
+      "any": false,
+      "field": "hour",
+      "labels": null,
+      "raw": "12",
+      "special": null,
+      "special_description": null,
+      "values": [
+        12
+      ]
+    },
+    {
+      "any": false,
+      "field": "day_of_month",
+      "labels": null,
+      "raw": "30",
+      "special": null,
+      "special_description": null,
+      "values": [
+        30
+      ]
+    },
+    {
+      "any": false,
+      "field": "month",
+      "labels": [
+        "FEB"
+      ],
+      "raw": "2",
+      "special": null,
+      "special_description": null,
+      "values": [
+        2
+      ]
+    },
+    {
+      "any": true,
+      "field": "day_of_week",
+      "labels": [
+        "SUN",
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT"
+      ],
+      "raw": "*",
+      "special": null,
+      "special_description": null,
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    }
+  ],
+  "never_fires": true,
+  "never_fires_reason": "day-of-month 30 never occurs in FEB",
+  "normalized": "0 12 30 2 *",
+  "unsupported": null,
+  "valid": true,
+  "warnings": []
+}

@@ -1,0 +1,18 @@
+{
+  "description": "At 12:00, on day 30 of the month, only in February",
+  "dialect": "unix",
+  "expression": "0 12 30 2 *",
+  "fields": {
+    "day_of_month": "on day 30 of the month",
+    "day_of_week": null,
+    "hour": "at 12:00",
+    "minute": null,
+    "month": "only in February",
+    "second": null,
+    "year": null
+  },
+  "fully_translated": true,
+  "locale": "en",
+  "normalized": "0 12 30 2 *",
+  "time_of_day": "At 12:00"
+}

@@ -1,0 +1,18 @@
+{
+  "description": "At 04:15",
+  "dialect": "unix",
+  "expression": "15 4 * * *",
+  "fields": {
+    "day_of_month": "every day",
+    "day_of_week": null,
+    "hour": "at 04:00",
+    "minute": "at 15 minutes past the hour",
+    "month": null,
+    "second": null,
+    "year": null
+  },
+  "fully_translated": true,
+  "locale": "en",
+  "normalized": "15 4 * * *",
+  "time_of_day": "At 04:15"
+}

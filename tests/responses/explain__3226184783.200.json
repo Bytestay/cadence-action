@@ -1,0 +1,18 @@
+{
+  "description": "At 18:00, Monday through Friday",
+  "dialect": "aws",
+  "expression": "cron(0 18 ? * MON-FRI *)",
+  "fields": {
+    "day_of_month": null,
+    "day_of_week": "Monday through Friday",
+    "hour": "at 18:00",
+    "minute": null,
+    "month": null,
+    "second": null,
+    "year": null
+  },
+  "fully_translated": true,
+  "locale": "en",
+  "normalized": "cron(0 18 ? * MON-FRI *)",
+  "time_of_day": "At 18:00"
+}

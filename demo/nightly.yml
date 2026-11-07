@@ -1,0 +1,11 @@
+# A GitHub workflow, kept under demo/ so it never runs here: the action reads its schedule.
+name: nightly
+on:
+  schedule:
+    - cron: "0 3 * * 1-5"
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "nightly build"

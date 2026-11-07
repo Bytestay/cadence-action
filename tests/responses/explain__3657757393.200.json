@@ -1,0 +1,18 @@
+{
+  "description": "Every 10 minutes",
+  "dialect": "unix",
+  "expression": "*/10 * * * *",
+  "fields": {
+    "day_of_month": "every day",
+    "day_of_week": null,
+    "hour": "every hour",
+    "minute": "every 10 minutes",
+    "month": null,
+    "second": null,
+    "year": null
+  },
+  "fully_translated": true,
+  "locale": "en",
+  "normalized": "*/10 * * * *",
+  "time_of_day": "every 10 minutes, every hour"
+}

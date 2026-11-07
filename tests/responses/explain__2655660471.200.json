@@ -1,0 +1,18 @@
+{
+  "description": "Every 2 minutes",
+  "dialect": "unix",
+  "expression": "*/2 * * * *",
+  "fields": {
+    "day_of_month": "every day",
+    "day_of_week": null,
+    "hour": "every hour",
+    "minute": "every 2 minutes",
+    "month": null,
+    "second": null,
+    "year": null
+  },
+  "fully_translated": true,
+  "locale": "en",
+  "normalized": "*/2 * * * *",
+  "time_of_day": "every 2 minutes, every hour"
+}

@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
+        with:
+          # Falls back to GITHUB_TOKEN; needs "Allow GitHub Actions to create and approve pull requests".
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: steps.release.outputs.release_created == 'true'
+      - name: Move the major tag (v1 → this release)
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          SHA: ${{ steps.release.outputs.sha }}
+          MAJOR: v${{ steps.release.outputs.major }}
+        run: |
+          # the checkout is shallow and has no tags: point the major tag at the release commit itself
+          git tag -f "$MAJOR" "$SHA"
+          git push -f origin "refs/tags/$MAJOR"

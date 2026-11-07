@@ -1,0 +1,61 @@
+name: E2E
+
+# Runs this action (uses: ./) against the real Cadence API through RapidAPI: one valid expression (validate,
+# explain, next) and one invalid one (validate only), so 4 requests.
+# Needs the repository secret RAPIDAPI_KEY; without it the job is skipped.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "47 6 1 * *"   # monthly: 4 requests, so it fits the free Basic plan (15 a month)
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.RAPIDAPI_KEY != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: No key
+        if: env.HAS_KEY != 'true'
+        run: echo "::warning::RAPIDAPI_KEY is not set; skipping the end-to-end test."
+      - name: A workflow with two schedules
+        if: env.HAS_KEY == 'true'
+        run: |
+          mkdir -p e2e
+          printf 'on:\n  schedule:\n    - cron: "30 1 * * 1-5"\n    - cron: "61 * * * *"\njobs: {}\n' > e2e/nightly.yml
+          git add e2e
+      - name: Check it with the action
+        if: env.HAS_KEY == 'true'
+        id: check
+        continue-on-error: true   # the second schedule is invalid on purpose
+        uses: ./
+        with:
+          rapidapi-key: ${{ secrets.RAPIDAPI_KEY }}
+          workflow-paths: e2e/*.yml
+          cronjob-paths: ""
+          check-all: "true"
+          timezone: Europe/Lisbon
+          comment: "false"
+          max-requests: "4"
+      - name: Check the outputs
+        if: env.HAS_KEY == 'true'
+        env:
+          PASSED: ${{ steps.check.outputs.passed }}
+          CHECKED: ${{ steps.check.outputs.expressions-checked }}
+          INVALID: ${{ steps.check.outputs.invalid }}
+          WARNINGS: ${{ steps.check.outputs.warnings }}
+          REQUESTS: ${{ steps.check.outputs.requests-used }}
+          QUOTA: ${{ steps.check.outputs.quota-remaining }}
+          OUTCOME: ${{ steps.check.outcome }}
+        run: |
+          echo "passed=$PASSED checked=$CHECKED invalid=$INVALID warnings=$WARNINGS requests=$REQUESTS quota=$QUOTA outcome=$OUTCOME"
+          test "$OUTCOME" = failure    # the invalid expression must fail the step
+          test "$PASSED" = false
+          test "$CHECKED" = 2
+          test "$INVALID" = 1
+          test "$WARNINGS" = 0
+          test "$REQUESTS" = 4
+          test -n "$QUOTA"             # RapidAPI's quota header came through

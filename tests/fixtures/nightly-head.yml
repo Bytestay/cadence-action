@@ -1,0 +1,13 @@
+name: nightly
+on:
+  schedule:
+    - cron: "0 3 * * 1-5"
+    - cron: "*/2 * * * *"
+    - cron: "0 12 30 2 *"
+    - cron: "61 * * * *"
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo nightly

@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Fake curl for the bats tests and the CI smoke test.
+# Cadence calls (POST …/v1/cron/<endpoint>) answer with the real responses recorded in tests/responses/
+# (see tests/record.sh), found by the request body. $MOCK_DIR can override them:
+#   status_<endpoint>  one HTTP status per line, consumed in order (the last one repeats)
+#   body_<status>      response body for an overridden status
+#   quota              value of x-ratelimit-requests-remaining (optional)
+#   Each request body is appended, compacted to one line, to requests.log.
+# GitHub calls are logged as "METHOD path" in github.log and answer from:
+#   gh_comments.json, contents/<path> (404 when missing),
+#   gh_comment_status for POST/PATCH of comments (the body sent is saved as gh_<method>.json).
+out="" headers="" url="" fmt="" data="" method=GET
+while (($#)); do
+  case "$1" in
+    -o) out="$2"; shift ;;
+    -D) headers="$2"; shift ;;
+    -w) fmt="$2"; shift ;;
+    -X) method="$2"; shift ;;
+    -H|--max-time) shift ;;
+    --data-binary) data="$2"; shift ;;
+    http*) url="$1" ;;
+  esac
+  shift
+done
+RESPONSES="${MOCK_RESPONSES:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../responses" && pwd)}"
+reply() { # reply STATUS BODY_FILE
+  if [[ -f $2 ]]; then cp "$2" "$out"; else printf '{}' > "$out"; fi
+  [[ -n $headers ]] && { echo "HTTP/2 $1"; [[ -f $MOCK_DIR/quota ]] && echo "x-ratelimit-requests-remaining: $(cat "$MOCK_DIR/quota")"; } > "$headers"
+  [[ -n $fmt ]] && printf '%s' "$1"
+  exit 0
+}
+
+if [[ $url == "${GITHUB_API_URL:-https://api.github.com}"/* ]]; then
+  path="${url#"${GITHUB_API_URL:-https://api.github.com}"/}"
+  echo "$method ${path}" >> "$MOCK_DIR/github.log"
+  case "$method $path" in
+    "GET "*/comments*)
+      [[ -f $MOCK_DIR/gh_comments.json ]] || echo '[]' > "$MOCK_DIR/gh_comments.json"
+      reply 200 "$MOCK_DIR/gh_comments.json" ;;
+    "POST "*/comments|"PATCH "*/comments/*)
+      cp "${data#@}" "$MOCK_DIR/gh_$(tr '[:upper:]' '[:lower:]' <<<"$method").json"
+      echo '{"id": 99, "html_url": "https://github.com/acme/app/pull/7#issuecomment-99"}' > "$MOCK_DIR/comment_reply.json"
+      reply "$(cat "$MOCK_DIR/gh_comment_status" 2>/dev/null || echo 201)" "$MOCK_DIR/comment_reply.json" ;;
+    "GET "*/contents/*)
+      file="${path#*/contents/}"; file="${file%%\?*}"
+      if [[ -f $MOCK_DIR/contents/$file ]]; then
+        jq -n --rawfile c "$MOCK_DIR/contents/$file" '{content: ($c | @base64)}' > "$MOCK_DIR/contents_reply.json"
+        reply 200 "$MOCK_DIR/contents_reply.json"
+      fi
+      echo '{"message": "Not Found"}' > "$MOCK_DIR/contents_reply.json"
+      reply 404 "$MOCK_DIR/contents_reply.json" ;;
+  esac
+  reply 404 /dev/null
+fi
+
+body="${data#@}"
+jq -c . "$body" >> "$MOCK_DIR/requests.log"
+endpoint="${url##*/}"
+seq="$MOCK_DIR/status_$endpoint"
+if [[ -f $seq ]]; then
+  status="$(head -1 "$seq")"
+  if [[ $(wc -l < "$seq") -gt 1 ]]; then tail -n +2 "$seq" > "$seq.tmp" && mv "$seq.tmp" "$seq"; fi
+  [[ $status == 000 ]] && { printf '000'; exit 7; }
+  if [[ -f $MOCK_DIR/body_$status ]]; then reply "$status" "$MOCK_DIR/body_$status"; fi
+fi
+zone="$(jq -r 'if has("timezone") then .timezone else "" end' "$body")"
+key="$(jq -j --arg z "$zone" '"\(.dialect)|\($z)|\(.expression)"' "$body" | cksum | cut -d' ' -f1)"
+for f in "$RESPONSES/${endpoint}__$key".*.json; do
+  [[ -f $f ]] || break
+  s="${f%.json}"; reply "${status:-${s##*.}}" "$f"
+done
+echo "unrecorded: $(jq -c . "$body")" >> "$MOCK_DIR/requests.log"
+reply 404 /dev/null

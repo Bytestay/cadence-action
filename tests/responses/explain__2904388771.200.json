@@ -1,0 +1,18 @@
+{
+  "description": "At 12:00, on the last weekday of the month",
+  "dialect": "quartz",
+  "expression": "0 0 12 LW * ?",
+  "fields": {
+    "day_of_month": "on the last weekday of the month",
+    "day_of_week": null,
+    "hour": "at 12:00",
+    "minute": null,
+    "month": null,
+    "second": null,
+    "year": null
+  },
+  "fully_translated": true,
+  "locale": "en",
+  "normalized": "0 0 12 LW * ?",
+  "time_of_day": "At 12:00"
+}

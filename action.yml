@@ -1,0 +1,115 @@
+name: "ByteStay Cadence: cron expression check"
+description: "Explain and check the cron schedules a pull request changes: plain English, next runs, DST and frequency warnings."
+author: ByteStay
+branding:
+  icon: clock
+  color: purple
+
+inputs:
+  rapidapi-key:
+    description: Your RapidAPI key for the Cadence API (store it as a secret). The free Basic plan has 15 requests a month.
+    required: true
+  workflow-paths:
+    description: Comma-separated globs for GitHub workflows, read at `on.schedule[].cron`. Empty to disable.
+    default: ".github/workflows/*.yml,.github/workflows/*.yaml"
+  cronjob-paths:
+    description: Comma-separated globs for Kubernetes manifests, read at `spec.schedule` of each CronJob. Empty to disable.
+    default: "**/*.yaml,**/*.yml"
+  cron-paths:
+    description: Comma-separated globs for other files. YAML and JSON are read at the keys in `cron-keys`; other files are read as crontabs.
+    default: ""
+  cron-keys:
+    description: Comma-separated keys whose string values are cron expressions, in YAML and JSON files from `cron-paths`.
+    default: "cron,schedule"
+  cron-paths-dialect:
+    description: "Dialect of the expressions in `cron-paths`: `unix`, `seconds`, `quartz` or `aws`. `cron(…)` values are always `aws`."
+    default: unix
+  cron-paths-timezone:
+    description: IANA time zone the expressions in `cron-paths` run in.
+    default: UTC
+  exclude-paths:
+    description: Comma-separated globs to skip.
+    default: "**/node_modules/**,**/vendor/**"
+  timezone:
+    description: IANA time zone to show the next runs in, for example Europe/Lisbon.
+    default: UTC
+  locale:
+    description: "Language of the explanations: `en`, `pt`, `es`, `fr`, `de`, `it` or `nl`."
+    default: en
+  next-runs:
+    description: How many next runs to show per expression (0 to 20).
+    default: "3"
+  min-interval:
+    description: Warn when an expression runs more often than this many minutes. 0 to disable. Workflows always warn under 5.
+    default: "5"
+  fail-on:
+    description: "`invalid` (default) fails on invalid expressions, `warning` also on warnings, `never` only reports."
+    default: invalid
+  check-all:
+    description: "`true` checks every expression found, not only the ones that are new or changed."
+    default: "false"
+  base-ref:
+    description: Commit, branch or tag to compare against. Default the pull request's base, or the previous commit on a push.
+    default: ""
+  comment:
+    description: "`true` posts the report as a pull request comment, updated on every run. Needs `pull-requests: write`."
+    default: "true"
+  max-requests:
+    description: Maximum API requests per run (up to three per new or changed expression). Expressions over the cap are listed as not checked.
+    default: "15"
+  on-quota-exceeded:
+    description: "`warn` (default) or `fail` when the monthly quota is exhausted."
+    default: warn
+  github-token:
+    description: Token used to read the base version and to comment.
+    default: ${{ github.token }}
+
+outputs:
+  passed:
+    description: "`true` when the check passed."
+    value: ${{ steps.check.outputs.passed }}
+  expressions-checked:
+    description: Number of new or changed expressions checked.
+    value: ${{ steps.check.outputs.expressions-checked }}
+  invalid:
+    description: Number of invalid expressions, including ones that never run.
+    value: ${{ steps.check.outputs.invalid }}
+  warnings:
+    description: Number of warnings across all expressions.
+    value: ${{ steps.check.outputs.warnings }}
+  requests-used:
+    description: API requests used by this run.
+    value: ${{ steps.check.outputs.requests-used }}
+  quota-remaining:
+    description: Requests left this month, from RapidAPI's response headers (empty if unknown).
+    value: ${{ steps.check.outputs.quota-remaining }}
+  comment-url:
+    description: URL of the pull request comment (empty when none was posted).
+    value: ${{ steps.check.outputs.comment-url }}
+
+runs:
+  using: composite
+  steps:
+    - id: check
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/scripts/run.sh"'
+      env:
+        INPUT_RAPIDAPI_KEY: ${{ inputs.rapidapi-key }}
+        INPUT_WORKFLOW_PATHS: ${{ inputs.workflow-paths }}
+        INPUT_CRONJOB_PATHS: ${{ inputs.cronjob-paths }}
+        INPUT_CRON_PATHS: ${{ inputs.cron-paths }}
+        INPUT_CRON_KEYS: ${{ inputs.cron-keys }}
+        INPUT_CRON_PATHS_DIALECT: ${{ inputs.cron-paths-dialect }}
+        INPUT_CRON_PATHS_TIMEZONE: ${{ inputs.cron-paths-timezone }}
+        INPUT_EXCLUDE_PATHS: ${{ inputs.exclude-paths }}
+        INPUT_TIMEZONE: ${{ inputs.timezone }}
+        INPUT_LOCALE: ${{ inputs.locale }}
+        INPUT_NEXT_RUNS: ${{ inputs.next-runs }}
+        INPUT_MIN_INTERVAL: ${{ inputs.min-interval }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_CHECK_ALL: ${{ inputs.check-all }}
+        INPUT_BASE_REF: ${{ inputs.base-ref }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_MAX_REQUESTS: ${{ inputs.max-requests }}
+        INPUT_ON_QUOTA_EXCEEDED: ${{ inputs.on-quota-exceeded }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}

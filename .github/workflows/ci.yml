@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: shellcheck · bats · actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: shellcheck
+        run: shellcheck -x scripts/*.sh tests/bin/curl tests/record.sh
+      - name: bats
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq bats >/dev/null
+          bats tests/
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
+
+  smoke:
+    # The action itself (uses: ./) on the fixture files, with curl faked from the recorded API responses:
+    # checks the composite wiring, yq, jq and the time zone maths on each runner, without a key.
+    name: smoke (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Fake curl
+        run: |
+          echo "$GITHUB_WORKSPACE/tests/bin" >> "$GITHUB_PATH"
+          echo "MOCK_DIR=$(mktemp -d)" >> "$GITHUB_ENV"
+      - name: Check the fixtures with the action
+        id: check
+        uses: ./
+        env:
+          CADENCE_NOW: "1794268800"   # the start the responses were recorded with
+        with:
+          rapidapi-key: smoke-test-key
+          workflow-paths: tests/fixtures/nightly-head.yml
+          cronjob-paths: tests/fixtures/backup-head.yaml
+          check-all: "true"
+          timezone: Europe/Lisbon
+          fail-on: never
+          comment: "false"
+      - name: Check the outputs
+        env:
+          PASSED: ${{ steps.check.outputs.passed }}
+          CHECKED: ${{ steps.check.outputs.expressions-checked }}
+          INVALID: ${{ steps.check.outputs.invalid }}
+          WARNINGS: ${{ steps.check.outputs.warnings }}
+          REQUESTS: ${{ steps.check.outputs.requests-used }}
+        run: |
+          echo "passed=$PASSED checked=$CHECKED invalid=$INVALID warnings=$WARNINGS requests=$REQUESTS"
+          if grep -q unrecorded "$MOCK_DIR/requests.log"; then grep unrecorded "$MOCK_DIR/requests.log"; exit 1; fi
+          test "$PASSED" = true
+          test "$CHECKED" = 5
+          test "$INVALID" = 2
+          test "$WARNINGS" = 3     # every 2 minutes, and the CronJob's DST gap and overlap
+          test "$REQUESTS" = 11
