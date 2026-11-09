@@ -3,6 +3,7 @@
 [![CI](https://github.com/bytestay/cadence-action/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bytestay/cadence-action/actions/workflows/ci.yml)
 [![E2E](https://github.com/bytestay/cadence-action/actions/workflows/e2e.yml/badge.svg?branch=main)](https://github.com/bytestay/cadence-action/actions/workflows/e2e.yml)
 [![Release](https://img.shields.io/github/v/release/bytestay/cadence-action)](https://github.com/bytestay/cadence-action/releases)
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-cadence-blue?logo=github)](https://github.com/marketplace/actions/bytestay-cadence-cron-expression-check)
 [![License: MIT](https://img.shields.io/github/license/bytestay/cadence-action)](LICENSE)
 
 Know what a **cron schedule** really does before you merge it. For every schedule a pull request adds or changes, you get:
