@@ -108,11 +108,13 @@ api() { # api ENDPOINT BODY_FILE → sets $code and leaves the response in $WORK
 }
 # api_error RESULT_FILE: any status the caller didn't handle. Writes the result and may stop the run.
 api_error() {
-  local res="$1" detail
-  case "$code" in
+  local res="$1" detail kind="$code"
+  # The API.market gateway answers 400 to a missing or wrong key
+  if [[ $code == 400 ]] && grep -qi 'api-market-key' "$WORK/resp.json" 2>/dev/null; then kind=401; fi
+  case "$kind" in
     401|403)
       detail="$(jq -r '.message // empty' "$WORK/resp.json" 2>/dev/null || true)"
-      echo "::error::Cadence refused the key (HTTP $code${detail:+: $detail}). Subscribe (free Basic plan) at $PRICING."
+      echo "::error::Cadence refused the key (HTTP $code${detail:+: $detail}). Subscribe (free plan) at $PRICING."
       stop="key refused" ;;
     429)
       if ! quota_429; then

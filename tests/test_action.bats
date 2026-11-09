@@ -420,11 +420,11 @@ comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
 @test "API.market errors point to the API.market store" {
   workflow "0 6 * * *"
   export INPUT_RAPIDAPI_KEY="" INPUT_API_MARKET_KEY=am-key
-  echo '{"message":"Invalid x-api-market-key or x-magicapi-key defined in headers"}' > "$MOCK_DIR/body_401"
-  echo 401 > "$MOCK_DIR/status_validate"
+  echo '{"message":"Invalid x-api-market-key or x-magicapi-key defined in headers"}' > "$MOCK_DIR/body_400"
+  echo 400 > "$MOCK_DIR/status_validate"
   run_action
   [ "$status" -eq 1 ]
-  [[ $output == *"Cadence refused the key (HTTP 401: Invalid x-api-market-key"* ]]
+  [[ $output == *"Cadence refused the key (HTTP 400: Invalid x-api-market-key"* ]]
   [[ $output == *"https://api.market/store/bytestay/cadence"* ]]
 }
 
