@@ -2,6 +2,7 @@
 # Functions used by run.sh; sourced by the bats tests too.
 
 CADENCE_HOST="cadence-cron-expression-api.p.rapidapi.com"
+API_MARKET_URL="https://prod.api.market/api/v1/bytestay/cadence"
 ZERO_SHA="0000000000000000000000000000000000000000"
 ZONEINFO="${CADENCE_ZONEINFO:-/usr/share/zoneinfo}"
 
@@ -195,8 +196,9 @@ base_file() {
 # call_api ENDPOINT BODY_FILE OUT HEADERS → prints the HTTP status ("000" when the request itself failed)
 call_api() {
   local endpoint="$1" body="$2" out="$3" headers="$4" code
-  local url="${CADENCE_API_URL:-https://$CADENCE_HOST}/v1/cron/$endpoint"
-  local auth=(-H "X-RapidAPI-Key: ${INPUT_RAPIDAPI_KEY:-}" -H "X-RapidAPI-Host: $CADENCE_HOST")
+  local base="https://$CADENCE_HOST" auth=(-H "X-RapidAPI-Key: ${INPUT_RAPIDAPI_KEY:-}" -H "X-RapidAPI-Host: $CADENCE_HOST")
+  if [[ ${MARKET:-} == api.market ]]; then base="$API_MARKET_URL"; auth=(-H "x-api-market-key: ${INPUT_API_MARKET_KEY:-}"); fi
+  local url="${CADENCE_API_URL:-$base}/v1/cron/$endpoint"
   # CADENCE_API_URL / CADENCE_AUTH_HEADER let the tests and maintainers call the API directly
   [[ -n ${CADENCE_AUTH_HEADER:-} ]] && auth=(-H "$CADENCE_AUTH_HEADER")
   code="$(curl -sS --max-time 30 -o "$out" -D "$headers" -w '%{http_code}' \

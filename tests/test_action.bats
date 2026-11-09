@@ -18,7 +18,7 @@ setup() {
   cp "$ROOT/tests/responses/rapidapi_403.json" "$MOCK_DIR/body_403"
   cp "$ROOT/tests/responses/rapidapi_429.json" "$MOCK_DIR/body_429"
   export PATH="$ROOT/tests/bin:$PATH"
-  export INPUT_RAPIDAPI_KEY=test-key INPUT_BASE_REF="" INPUT_CHECK_ALL=false INPUT_FAIL_ON=invalid
+  export INPUT_RAPIDAPI_KEY=test-key INPUT_API_MARKET_KEY="" INPUT_BASE_REF="" INPUT_CHECK_ALL=false INPUT_FAIL_ON=invalid
   export INPUT_COMMENT=true INPUT_MAX_REQUESTS=15 INPUT_ON_QUOTA_EXCEEDED=warn INPUT_GITHUB_TOKEN=gh-token
   export INPUT_WORKFLOW_PATHS=".github/workflows/*.yml,.github/workflows/*.yaml"
   export INPUT_CRONJOB_PATHS="**/*.yaml,**/*.yml" INPUT_CRON_PATHS="" INPUT_CRON_KEYS="cron,schedule"
@@ -388,17 +388,52 @@ comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
   export INPUT_RAPIDAPI_KEY=""
   run_action
   [ "$status" -eq 0 ]
-  [[ $output == *"Cadence skipped: no rapidapi-key"* ]]
+  [[ $output == *"Cadence skipped: no rapidapi-key or api-market-key"* ]]
   export GITHUB_EVENT_NAME=push
   run_action
   [ "$status" -eq 1 ]
-  [[ $output == *"rapidapi-key is empty"* ]]
+  [[ $output == *"No API key: set rapidapi-key or api-market-key"* ]]
+  [[ $output == *"api.market/store/bytestay/cadence"* ]]
 }
 
 @test "the key is masked and sent as RapidAPI headers" {
   workflow "0 6 * * *"
   run_action
   [[ $output == *"::add-mask::test-key"* ]]
+  grep -qx 'https://cadence-cron-expression-api.p.rapidapi.com/v1/cron/validate' "$MOCK_DIR/cadence_calls.log"
+  grep -qx 'X-RapidAPI-Key: test-key' "$MOCK_DIR/cadence_calls.log"
+  ! grep -qi 'x-api-market-key' "$MOCK_DIR/cadence_calls.log"
+}
+
+@test "an api-market-key is masked and sent to the API.market gateway" {
+  workflow "0 6 * * *"
+  export INPUT_RAPIDAPI_KEY="" INPUT_API_MARKET_KEY=am-key
+  run_action
+  [ "$status" -eq 0 ]
+  [[ $output == *"::add-mask::am-key"* ]]
+  grep -qx 'https://prod.api.market/api/v1/bytestay/cadence/v1/cron/validate' "$MOCK_DIR/cadence_calls.log"
+  grep -qx 'x-api-market-key: am-key' "$MOCK_DIR/cadence_calls.log"
+  ! grep -qi 'rapidapi' "$MOCK_DIR/cadence_calls.log"
+  [ "$(grep -c 'Not checked' "$GITHUB_STEP_SUMMARY")" = 0 ]
+}
+
+@test "API.market errors point to the API.market store" {
+  workflow "0 6 * * *"
+  export INPUT_RAPIDAPI_KEY="" INPUT_API_MARKET_KEY=am-key
+  echo '{"message":"Invalid x-api-market-key or x-magicapi-key defined in headers"}' > "$MOCK_DIR/body_401"
+  echo 401 > "$MOCK_DIR/status_validate"
+  run_action
+  [ "$status" -eq 1 ]
+  [[ $output == *"Cadence refused the key (HTTP 401: Invalid x-api-market-key"* ]]
+  [[ $output == *"https://api.market/store/bytestay/cadence"* ]]
+}
+
+@test "both keys set: fails early" {
+  workflow "0 6 * * *"
+  INPUT_API_MARKET_KEY=am-key run_action
+  [ "$status" -eq 1 ]
+  [[ $output == *"Set rapidapi-key or api-market-key, not both."* ]]
+  [ ! -f "$MOCK_DIR/requests.log" ]
 }
 
 @test "bad inputs fail early with a clear message" {

@@ -19,9 +19,9 @@ It reads schedules from:
 - Kubernetes CronJobs (`spec.schedule`, in the zone of `spec.timeZone`);
 - any other file you point it at: YAML and JSON keys, or crontabs.
 
-It calls the [Cadence API](https://cadence.bytestay.pt) with **your own RapidAPI key**.
+It calls the [Cadence API](https://cadence.bytestay.pt) with **your own key**, from RapidAPI or API.market.
 
-- The free Basic plan has 15 requests a month.
+- The free plan has 15 requests a month on both.
 - One new or changed expression is up to three requests.
 
 ```yaml
@@ -45,6 +45,19 @@ jobs:
 1. Subscribe to the [Cadence API on RapidAPI](https://rapidapi.com/bytestay-bytestay-default/api/cadence-cron-expression-api). Basic is $0 with a hard limit, so it never runs up a bill.
 2. Add your RapidAPI key as the repository secret `RAPIDAPI_KEY`.
 3. Add the workflow above.
+
+### With an API.market key
+
+Subscribe to [Cadence on API.market](https://api.market/store/bytestay/cadence) instead (the Free plan is $0 with a hard limit). Then store the key as `API_MARKET_KEY` and pass it as `api-market-key`:
+
+```yaml
+      - uses: bytestay/cadence-action@v1
+        with:
+          api-market-key: ${{ secrets.API_MARKET_KEY }}
+          timezone: Europe/Lisbon
+```
+
+Set one key, not both. The action calls the marketplace the key belongs to.
 
 ## What you get
 
@@ -86,7 +99,8 @@ These are errors, not warnings:
 
 | input | default | meaning |
 |---|---|---|
-| `rapidapi-key` | *required* | your RapidAPI key |
+| `rapidapi-key` | *empty* | your RapidAPI key; set this or `api-market-key` |
+| `api-market-key` | *empty* | your API.market key; set this or `rapidapi-key` |
 | `workflow-paths` | `.github/workflows/*.yml,.github/workflows/*.yaml` | workflows, read at `on.schedule[].cron`; empty to disable |
 | `cronjob-paths` | `**/*.yaml,**/*.yml` | Kubernetes manifests, read at `spec.schedule` of each CronJob; empty to disable |
 | `cron-paths` | *empty* | other files: YAML and JSON are read at `cron-keys`, anything else as a crontab |
@@ -123,7 +137,7 @@ Expressions run in:
 | `invalid` | invalid expressions, including ones that never run |
 | `warnings` | warnings across all expressions |
 | `requests-used` | API requests used by this run |
-| `quota-remaining` | requests left this month, from RapidAPI's `x-ratelimit-requests-remaining` header |
+| `quota-remaining` | requests left this month, from the `x-ratelimit-requests-remaining` header; empty when the marketplace doesn't send it |
 | `comment-url` | the pull request comment, empty when none was posted |
 
 To use an output in a later step, give this step an `id` and read `steps.<id>.outputs.warnings`.
