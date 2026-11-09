@@ -80,12 +80,21 @@ fi
 
 # 3. Up to three requests per new or changed expression: validate, explain, next
 requests=0 quota="" stop=""
-api() { # api ENDPOINT BODY_FILE → sets $code and leaves the response in $WORK/resp.json; retries once on 000/5xx
+# quota_429: true when a 429 is the monthly quota. RapidAPI also answers 429 to the per-second rate limit
+# (2 requests a second on Basic), and that one says nothing about the quota.
+quota_429() { grep -qi 'quota' "$WORK/resp.json" 2>/dev/null; }
+api() { # api ENDPOINT BODY_FILE → sets $code and leaves the response in $WORK/resp.json
+  # retries once on 000/5xx, and up to 3 times on a rate-limit 429
+  local tries=0
   code="$(call_api "$1" "$2" "$WORK/resp.json" "$WORK/headers.txt")"; requests=$((requests + 1))
   if [[ $code == 000 || $code =~ ^5 ]]; then
     sleep "${CADENCE_RETRY_DELAY:-5}"
     code="$(call_api "$1" "$2" "$WORK/resp.json" "$WORK/headers.txt")"; requests=$((requests + 1))
   fi
+  while [[ $code == 429 ]] && ! quota_429 && (( tries < 3 )); do
+    tries=$((tries + 1)); sleep "${CADENCE_RATE_DELAY:-$tries}"
+    code="$(call_api "$1" "$2" "$WORK/resp.json" "$WORK/headers.txt")"; requests=$((requests + 1))
+  done
   local q; q="$(header_value "$WORK/headers.txt" x-ratelimit-requests-remaining)"; [[ -n $q ]] && quota="$q"
   return 0
 }
@@ -98,6 +107,11 @@ api_error() {
       echo "::error::Cadence refused the key (HTTP $code${detail:+: $detail}). Subscribe (free Basic plan) at $PRICING."
       stop="key refused" ;;
     429)
+      if ! quota_429; then
+        echo "::warning::Cadence rate limit (HTTP 429) after 3 retries: the remaining expressions were not checked. Your build is not failed because of it."
+        stop="rate limited"
+        jq -cn --arg r "$stop (HTTP $code)" '{status: "not_analysed", reason: $r}' > "$res"; return 0
+      fi
       if [[ ${INPUT_ON_QUOTA_EXCEEDED:-warn} == fail ]]; then
         echo "::error::Cadence monthly quota exhausted. Upgrade at $PRICING."
         jq -cn '{status: "failed", reason: "quota exhausted (HTTP 429)"}' > "$res"; stop="quota exhausted"; return 0

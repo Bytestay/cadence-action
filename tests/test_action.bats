@@ -28,7 +28,7 @@ setup() {
   export GITHUB_OUTPUT="$BATS_TEST_TMPDIR/output" GITHUB_STEP_SUMMARY="$BATS_TEST_TMPDIR/summary.md"
   export GITHUB_REPOSITORY=acme/app GITHUB_API_URL=https://api.github.com GITHUB_SERVER_URL=https://github.com
   export GITHUB_EVENT_PATH="$BATS_TEST_TMPDIR/event.json"
-  export CADENCE_RETRY_DELAY=0 CADENCE_NOW=1794268800 # 2026-11-10T00:00:00Z, the start of the recorded responses
+  export CADENCE_RETRY_DELAY=0 CADENCE_RATE_DELAY=0 CADENCE_NOW=1794268800 # 2026-11-10T00:00:00Z, the start of the recorded responses
   unset CADENCE_API_URL CADENCE_AUTH_HEADER
   : > "$GITHUB_OUTPUT"; : > "$GITHUB_STEP_SUMMARY"
 }
@@ -329,6 +329,30 @@ comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
   run_action
   [ "$status" -eq 1 ]
   [[ $output == *"::error::Cadence monthly quota exhausted"* ]]
+}
+
+@test "rate limit (429 without quota): retried, then checked" {
+  workflow "0 6 * * *"
+  echo '{"message":"Too many requests"}' > "$MOCK_DIR/body_429"
+  printf '429\n429\n200\n' > "$MOCK_DIR/status_validate"
+  echo 9 > "$MOCK_DIR/quota"
+  run_action
+  [ "$status" -eq 0 ]
+  [[ $output != *"quota exhausted"* ]]
+  [[ $output != *"rate limit"* ]]
+  [ "$(grep -c 'Not checked' "$GITHUB_STEP_SUMMARY")" = 0 ]
+}
+
+@test "rate limit that doesn't clear: a warning, not a quota error, and the build passes" {
+  workflow "0 6 * * *"
+  echo '{"message":"Too many requests"}' > "$MOCK_DIR/body_429"
+  echo 429 > "$MOCK_DIR/status_validate"
+  run_action
+  [ "$status" -eq 0 ]
+  [ "$(out requests-used)" = 4 ]
+  [[ $output == *"::warning::Cadence rate limit (HTTP 429) after 3 retries"* ]]
+  [[ $output != *"quota exhausted"* ]]
+  grep -q 'Not checked: rate limited' "$GITHUB_STEP_SUMMARY"
 }
 
 @test "API down: one retry, then a warning and the build passes" {
