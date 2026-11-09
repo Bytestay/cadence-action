@@ -6,7 +6,11 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib.sh
 source "$HERE/lib.sh"
 
-PRICING="https://rapidapi.com/bytestay-bytestay-default/api/cadence-cron-expression-api/pricing"
+RAPIDAPI_PRICING="https://rapidapi.com/bytestay-bytestay-default/api/cadence-cron-expression-api/pricing"
+API_MARKET_PRICING="https://api.market/store/bytestay/cadence"
+# The marketplace follows the key that is set: RapidAPI or API.market (set only one)
+MARKET=rapidapi PRICING="$RAPIDAPI_PRICING"
+if [[ -n ${INPUT_API_MARKET_KEY:-} ]]; then MARKET=api.market PRICING="$API_MARKET_PRICING"; fi
 MARKER="<!-- cadence-action -->"
 OUT="${GITHUB_OUTPUT:-/dev/null}"
 SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
@@ -50,16 +54,20 @@ INPUT_CRON_PATHS_TIMEZONE="$(trim "${INPUT_CRON_PATHS_TIMEZONE:-UTC}")"
 [[ -z $INPUT_CRON_PATHS_TIMEZONE ]] && INPUT_CRON_PATHS_TIMEZONE=UTC
 export INPUT_CRON_PATHS_TIMEZONE
 
-if [[ -z ${INPUT_RAPIDAPI_KEY:-} && -z ${CADENCE_AUTH_HEADER:-} ]]; then
+if [[ -n ${INPUT_RAPIDAPI_KEY:-} && -n ${INPUT_API_MARKET_KEY:-} ]]; then
+  echo "::error::Set rapidapi-key or api-market-key, not both."; exit 1
+fi
+if [[ -z ${INPUT_RAPIDAPI_KEY:-}${INPUT_API_MARKET_KEY:-} && -z ${CADENCE_AUTH_HEADER:-} ]]; then
   if [[ ${GITHUB_EVENT_NAME:-} == pull_request* ]]; then
-    echo "::warning::Cadence skipped: no rapidapi-key. Pull requests from forks don't get repository secrets."
+    echo "::warning::Cadence skipped: no rapidapi-key or api-market-key. Pull requests from forks don't get repository secrets."
     output passed true; output requests-used 0
     exit 0
   fi
-  echo "::error::rapidapi-key is empty. Subscribe to the Cadence API (free Basic plan) at $PRICING and store the key as a secret."
+  echo "::error::No API key: set rapidapi-key or api-market-key. Subscribe to the Cadence API (free Basic plan) at $RAPIDAPI_PRICING or $API_MARKET_PRICING and store the key as a secret."
   exit 1
 fi
 [[ -n ${INPUT_RAPIDAPI_KEY:-} ]] && echo "::add-mask::$INPUT_RAPIDAPI_KEY"
+[[ -n ${INPUT_API_MARKET_KEY:-} ]] && echo "::add-mask::$INPUT_API_MARKET_KEY"
 
 PR=""
 if [[ ${GITHUB_EVENT_NAME:-} == pull_request* && -f ${GITHUB_EVENT_PATH:-} ]]; then
@@ -100,11 +108,13 @@ api() { # api ENDPOINT BODY_FILE → sets $code and leaves the response in $WORK
 }
 # api_error RESULT_FILE: any status the caller didn't handle. Writes the result and may stop the run.
 api_error() {
-  local res="$1" detail
-  case "$code" in
+  local res="$1" detail kind="$code"
+  # The API.market gateway answers 400 to a missing or wrong key
+  if [[ $code == 400 ]] && grep -qi 'api-market-key' "$WORK/resp.json" 2>/dev/null; then kind=401; fi
+  case "$kind" in
     401|403)
       detail="$(jq -r '.message // empty' "$WORK/resp.json" 2>/dev/null || true)"
-      echo "::error::Cadence refused the key (HTTP $code${detail:+: $detail}). Subscribe (free Basic plan) at $PRICING."
+      echo "::error::Cadence refused the key (HTTP $code${detail:+: $detail}). Subscribe (free plan) at $PRICING."
       stop="key refused" ;;
     429)
       if ! quota_429; then

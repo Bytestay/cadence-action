@@ -7,8 +7,11 @@ branding:
 
 inputs:
   rapidapi-key:
-    description: Your RapidAPI key for the Cadence API (store it as a secret). The free Basic plan has 15 requests a month.
-    required: true
+    description: Your RapidAPI key for the Cadence API (store it as a secret). Set this or api-market-key. The free Basic plan has 15 requests a month.
+    default: ""
+  api-market-key:
+    description: Your API.market key for the Cadence API (store it as a secret). Set this or rapidapi-key.
+    default: ""
   workflow-paths:
     description: Comma-separated globs for GitHub workflows, read at `on.schedule[].cron`. Empty to disable.
     default: ".github/workflows/*.yml,.github/workflows/*.yaml"
@@ -95,6 +98,7 @@ runs:
       run: '"$GITHUB_ACTION_PATH/scripts/run.sh"'
       env:
         INPUT_RAPIDAPI_KEY: ${{ inputs.rapidapi-key }}
+        INPUT_API_MARKET_KEY: ${{ inputs.api-market-key }}
         INPUT_WORKFLOW_PATHS: ${{ inputs.workflow-paths }}
         INPUT_CRONJOB_PATHS: ${{ inputs.cronjob-paths }}
         INPUT_CRON_PATHS: ${{ inputs.cron-paths }}

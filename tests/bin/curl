@@ -5,18 +5,19 @@
 #   status_<endpoint>  one HTTP status per line, consumed in order (the last one repeats)
 #   body_<status>      response body for an overridden status
 #   quota              value of x-ratelimit-requests-remaining (optional)
-#   Each request body is appended, compacted to one line, to requests.log.
+#   Each request body is appended, compacted to one line, to requests.log; its URL and headers to cadence_calls.log.
 # GitHub calls are logged as "METHOD path" in github.log and answer from:
 #   gh_comments.json, contents/<path> (404 when missing),
 #   gh_comment_status for POST/PATCH of comments (the body sent is saved as gh_<method>.json).
-out="" headers="" url="" fmt="" data="" method=GET
+out="" headers="" url="" fmt="" data="" method=GET hdrs=()
 while (($#)); do
   case "$1" in
     -o) out="$2"; shift ;;
     -D) headers="$2"; shift ;;
     -w) fmt="$2"; shift ;;
     -X) method="$2"; shift ;;
-    -H|--max-time) shift ;;
+    -H) hdrs+=("$2"); shift ;;
+    --max-time) shift ;;
     --data-binary) data="$2"; shift ;;
     http*) url="$1" ;;
   esac
@@ -55,6 +56,7 @@ fi
 
 body="${data#@}"
 jq -c . "$body" >> "$MOCK_DIR/requests.log"
+{ echo "$url"; printf '%s\n' "${hdrs[@]}"; } >> "$MOCK_DIR/cadence_calls.log"
 endpoint="${url##*/}"
 seq="$MOCK_DIR/status_$endpoint"
 if [[ -f $seq ]]; then
