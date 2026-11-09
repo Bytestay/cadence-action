@@ -84,7 +84,7 @@ comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
   glob_match "backup.yaml" "**/*.yaml"
   glob_match "k8s/jobs/backup.yaml" "**/*.yaml"
   glob_match "k8s/backup.yaml" "k8s/**/*.yaml"
-  ! glob_match "k8s/backup.json" "**/*.yaml"
+  ! glob_match "k8s/backup.json" "**/*.yaml" || false
 }
 
 @test "extract: workflow schedules with their lines, other triggers ignored" {
@@ -157,8 +157,8 @@ comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
   [ "$(out warnings)" = 3 ]
   [ "$(out requests-used)" = 8 ] # 3 + 1 (never fires) + 1 (invalid) + 3; the unchanged 0 3 * * 1-5 costs nothing
   [ "$(requests)" = 8 ]
-  ! grep -q unrecorded "$MOCK_DIR/requests.log"
-  ! grep -q '"0 3 \* \* 1-5"' "$MOCK_DIR/requests.log"
+  ! grep -q unrecorded "$MOCK_DIR/requests.log" || false
+  ! grep -q '"0 3 \* \* 1-5"' "$MOCK_DIR/requests.log" || false
   [[ $output == *"::error file=.github/workflows/nightly.yml,line=7,title=Invalid cron expression::61 * * * *: minute: 61 is out of range 0-59"* ]]
   [[ $output == *"::error file=.github/workflows/nightly.yml,line=6,title=Invalid cron expression::0 12 30 2 *: never runs: day-of-month 30 never occurs in FEB"* ]]
   [[ $output == *"::warning file=.github/workflows/nightly.yml,line=5,title=Cron warning::*/2 * * * *: Runs as often as every 2 minutes, but GitHub runs scheduled workflows at most once every 5 minutes."* ]]
@@ -182,7 +182,7 @@ comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
   jq -n '[{id: 5, body: "unrelated"}, {id: 42, body: "<!-- cadence-action -->\nold"}]' > "$MOCK_DIR/gh_comments.json"
   run_action
   grep -q '^PATCH repos/acme/app/issues/comments/42$' "$MOCK_DIR/github.log"
-  ! grep -q '^POST ' "$MOCK_DIR/github.log"
+  ! grep -q '^POST ' "$MOCK_DIR/github.log" || false
   [[ $(comment_body patch) == *"## Cadence ❌"* ]]
 }
 
@@ -205,7 +205,7 @@ comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
   [ "$status" -eq 0 ]
   [ "$(out passed)" = true ]
   [[ $output == *"::warning file=.github/workflows/nightly.yml,line=7,title=Invalid cron expression::"* ]]
-  ! grep -qF 'Invalid expressions fail this check' "$GITHUB_STEP_SUMMARY"
+  ! grep -qF 'Invalid expressions fail this check' "$GITHUB_STEP_SUMMARY" || false
 }
 
 @test "fail-on: warning fails when a check has a warning" {
@@ -238,7 +238,7 @@ comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
   [ "$(out requests-used)" = 0 ]
   [ "$(out expressions-checked)" = 0 ]
   [ ! -f "$MOCK_DIR/requests.log" ]
-  ! grep -q '^POST ' "$MOCK_DIR/github.log"
+  ! grep -q '^POST ' "$MOCK_DIR/github.log" || false
   grep -qF 'No cron expression changed in this pull request.' "$GITHUB_STEP_SUMMARY"
 }
 
@@ -402,7 +402,7 @@ comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
   [[ $output == *"::add-mask::test-key"* ]]
   grep -qx 'https://cadence-cron-expression-api.p.rapidapi.com/v1/cron/validate' "$MOCK_DIR/cadence_calls.log"
   grep -qx 'X-RapidAPI-Key: test-key' "$MOCK_DIR/cadence_calls.log"
-  ! grep -qi 'x-api-market-key' "$MOCK_DIR/cadence_calls.log"
+  ! grep -qi 'x-api-market-key' "$MOCK_DIR/cadence_calls.log" || false
 }
 
 @test "an api-market-key is masked and sent to the API.market gateway" {
@@ -413,7 +413,7 @@ comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
   [[ $output == *"::add-mask::am-key"* ]]
   grep -qx 'https://prod.api.market/api/v1/bytestay/cadence/v1/cron/validate' "$MOCK_DIR/cadence_calls.log"
   grep -qx 'x-api-market-key: am-key' "$MOCK_DIR/cadence_calls.log"
-  ! grep -qi 'rapidapi' "$MOCK_DIR/cadence_calls.log"
+  ! grep -qi 'rapidapi' "$MOCK_DIR/cadence_calls.log" || false
   [ "$(grep -c 'Not checked' "$GITHUB_STEP_SUMMARY")" = 0 ]
 }
 
