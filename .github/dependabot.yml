@@ -1,0 +1,18 @@
+# Dependabot: monthly version updates, one grouped PR per ecosystem and directory.
+# Security updates are grouped too. Every dependency PR is validated before merge.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      all:
+        applies-to: "version-updates"
+        patterns: ["*"]
+      security:
+        applies-to: "security-updates"
+        patterns: ["*"]
