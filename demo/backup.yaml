@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: backup
 spec:
-  schedule: "30 1 * * 0"
+  schedule: "30 1 * * *"
   timeZone: Europe/Lisbon
   jobTemplate:
     spec:
