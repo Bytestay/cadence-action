@@ -1,10 +1,36 @@
 #!/usr/bin/env bash
 # Functions used by run.sh; sourced by the bats tests too.
 
+# Test overrides (fake API, fixed clock) only count under the repo's own test harness: an earlier step that
+# writes GITHUB_ENV must not be able to redirect the key to another host.
+if [[ ${CADENCE_TEST_HARNESS:-} != 1 ]]; then
+  unset CADENCE_NOW CADENCE_API_URL CADENCE_AUTH_HEADER CADENCE_ZONEINFO CADENCE_RETRY_DELAY CADENCE_RATE_DELAY
+fi
+
 CADENCE_HOST="cadence-cron-expression-api.p.rapidapi.com"
 API_MARKET_URL="https://prod.api.market/api/v1/bytestay/cadence"
 ZERO_SHA="0000000000000000000000000000000000000000"
 ZONEINFO="${CADENCE_ZONEINFO:-/usr/share/zoneinfo}"
+
+# Workflow commands. Every value is escaped by GitHub's rules: data % CR LF; properties also : and ,.
+esc_data() { local s="$1"; s="${s//'%'/%25}"; s="${s//$'\r'/%0D}"; s="${s//$'\n'/%0A}"; printf '%s' "$s"; }
+esc_prop() { local s; s="$(esc_data "$1")"; s="${s//:/%3A}"; s="${s//,/%2C}"; printf '%s' "$s"; }
+wf() { printf '::%s::%s\n' "$1" "$(esc_data "$2")"; }                              # wf LEVEL MESSAGE
+wf_file() { printf '::%s file=%s::%s\n' "$1" "$(esc_prop "$2")" "$(esc_data "$3")"; } # wf_file LEVEL FILE MESSAGE
+
+# output NAME VALUE: a step output in the heredoc form with a random delimiter, never NAME=VALUE
+output() {
+  local d; d="ghadelim_$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+  { printf '%s<<%s\n' "$1" "$d"; printf '%s\n' "$2"; printf '%s\n' "$d"; } >> "${OUT:-/dev/null}"
+}
+
+# header_file HEADER… → prints the path of a 0600 file holding the headers (for curl -H @file), so keys
+# never sit on curl's argv where ps shows them. The caller removes it.
+header_file() {
+  local f h; f="$(umask 077; mktemp "${TMPDIR:-/tmp}/cadence-hdr.XXXXXX")"
+  for h in "$@"; do printf '%s\n' "$h" >> "$f"; done
+  printf '%s' "$f"
+}
 
 trim() { local s="$1"; s="${s#"${s%%[![:space:]]*}"}"; printf '%s' "${s%"${s##*[![:space:]]}"}"; }
 
@@ -64,7 +90,7 @@ discover() {
 # A file yq can't parse (a Helm template, say) gives nothing.
 extract() {
   local kind="$1" file="$2"
-  [[ -f $file ]] || return 0
+  [[ -f $file && ! -L $file ]] || return 0
   case "$kind" in
     workflow)
       yq -o json -I0 'select(.on | tag == "!!map") | .on.schedule[]? | select(tag == "!!map" and has("cron"))
@@ -144,11 +170,13 @@ dst_transitions() {
 
 # gh_api METHOD PATH OUT [JSON_FILE] → prints the HTTP status ("000" when the request itself failed)
 gh_api() {
-  local method="$1" path="$2" out="$3" data="${4:-}" code args=()
+  local method="$1" path="$2" out="$3" data="${4:-}" code args=() hf
   [[ -n $data ]] && args=(-H "Content-Type: application/json" --data-binary "@$data")
+  hf="$(header_file "Authorization: Bearer ${INPUT_GITHUB_TOKEN:-}")"
   code="$(curl -sS --max-time 30 -o "$out" -w '%{http_code}' -X "$method" \
-    -H "Authorization: Bearer ${INPUT_GITHUB_TOKEN:-}" -H "Accept: application/vnd.github+json" \
+    -H "@$hf" -H "Accept: application/vnd.github+json" \
     ${args[@]+"${args[@]}"} "${GITHUB_API_URL:-https://api.github.com}/$path" 2>/dev/null)" || code="000"
+  rm -f "$hf"
   printf '%s' "${code:-000}"
 }
 
@@ -196,13 +224,16 @@ base_file() {
 # call_api ENDPOINT BODY_FILE OUT HEADERS → prints the HTTP status ("000" when the request itself failed)
 call_api() {
   local endpoint="$1" body="$2" out="$3" headers="$4" code
-  local base="https://$CADENCE_HOST" auth=(-H "X-RapidAPI-Key: ${INPUT_RAPIDAPI_KEY:-}" -H "X-RapidAPI-Host: $CADENCE_HOST")
-  if [[ ${MARKET:-} == api.market ]]; then base="$API_MARKET_URL"; auth=(-H "x-api-market-key: ${INPUT_API_MARKET_KEY:-}"); fi
+  local base="https://$CADENCE_HOST" hf
+  local hdrs=("X-RapidAPI-Key: ${INPUT_RAPIDAPI_KEY:-}" "X-RapidAPI-Host: $CADENCE_HOST")
+  if [[ ${MARKET:-} == api.market ]]; then base="$API_MARKET_URL"; hdrs=("x-api-market-key: ${INPUT_API_MARKET_KEY:-}"); fi
   local url="${CADENCE_API_URL:-$base}/v1/cron/$endpoint"
-  # CADENCE_API_URL / CADENCE_AUTH_HEADER let the tests and maintainers call the API directly
-  [[ -n ${CADENCE_AUTH_HEADER:-} ]] && auth=(-H "$CADENCE_AUTH_HEADER")
+  # CADENCE_API_URL / CADENCE_AUTH_HEADER (test harness only) let the tests call the API directly
+  [[ -n ${CADENCE_AUTH_HEADER:-} ]] && hdrs=("$CADENCE_AUTH_HEADER")
+  hf="$(header_file "${hdrs[@]}")"
   code="$(curl -sS --max-time 30 -o "$out" -D "$headers" -w '%{http_code}' \
-    -X POST "$url" "${auth[@]}" -H "Content-Type: application/json" --data-binary "@$body" 2>/dev/null)" || code="000"
+    -X POST "$url" -H "@$hf" -H "Content-Type: application/json" --data-binary "@$body" 2>/dev/null)" || code="000"
+  rm -f "$hf"
   printf '%s' "${code:-000}"
 }
 

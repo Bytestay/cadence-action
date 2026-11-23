@@ -28,7 +28,7 @@ setup() {
   export GITHUB_OUTPUT="$BATS_TEST_TMPDIR/output" GITHUB_STEP_SUMMARY="$BATS_TEST_TMPDIR/summary.md"
   export GITHUB_REPOSITORY=acme/app GITHUB_API_URL=https://api.github.com GITHUB_SERVER_URL=https://github.com
   export GITHUB_EVENT_PATH="$BATS_TEST_TMPDIR/event.json"
-  export CADENCE_RETRY_DELAY=0 CADENCE_RATE_DELAY=0 CADENCE_NOW=1794268800 # 2026-11-10T00:00:00Z, the start of the recorded responses
+  export CADENCE_TEST_HARNESS=1 CADENCE_RETRY_DELAY=0 CADENCE_RATE_DELAY=0 CADENCE_NOW=1794268800 # 2026-11-10T00:00:00Z, the start of the recorded responses
   unset CADENCE_API_URL CADENCE_AUTH_HEADER
   : > "$GITHUB_OUTPUT"; : > "$GITHUB_STEP_SUMMARY"
 }
@@ -57,7 +57,8 @@ workflow() { # workflow CRON… → a pull request that sets these schedules in 
 }
 
 run_action() { cd "$REPO" && run "$ROOT/scripts/run.sh"; }
-out() { grep "^$1=" "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2-; }
+# step outputs are in the heredoc form: NAME<<DELIM, the value, DELIM
+out() { awk -v n="$1" '$0 ~ "^" n "<<" { d = substr($0, length(n) + 3); getline v; val = v; getline; if ($0 != d) val = val "\n..." } END { print val }' "$GITHUB_OUTPUT"; }
 requests() { grep -vc '^unrecorded' "$MOCK_DIR/requests.log" 2>/dev/null || echo 0; }
 comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
 
@@ -168,9 +169,9 @@ comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
   [[ $output == *"::error title=Cadence check failed::2 invalid cron expression(s)."* ]]
   grep -q '^## Cadence ❌' "$GITHUB_STEP_SUMMARY"
   grep -qF '4 cron expressions checked · 2 invalid · 3 warnings' "$GITHUB_STEP_SUMMARY"
-  grep -qF "| ⚠️ | [\`.github/workflows/nightly.yml:5\`](https://github.com/acme/app/blob/$HEAD/.github/workflows/nightly.yml#L5) | \`*/2 * * * *\`<br>UTC (GitHub) | Every 2 minutes | Tue 10 Nov 2026 00:02<br>Tue 10 Nov 2026 00:04<br>Tue 10 Nov 2026 00:06 |" "$GITHUB_STEP_SUMMARY"
+  grep -qF "| ⚠️ | [<code>.github/workflows/nightly.yml:5</code>](https://github.com/acme/app/blob/$HEAD/.github/workflows/nightly.yml#L5) | <code>*/2 * * * *</code><br>UTC (GitHub) | Every 2 minutes | Tue 10 Nov 2026 00:02<br>Tue 10 Nov 2026 00:04<br>Tue 10 Nov 2026 00:06 |" "$GITHUB_STEP_SUMMARY"
   grep -qF '| ❌ |' "$GITHUB_STEP_SUMMARY"
-  grep -qF '<br>`backup` | `30 1 * * SUN`<br>Europe/Lisbon | At 01:30, only on Sunday |' "$GITHUB_STEP_SUMMARY"
+  grep -qF '<br><code>backup</code> | <code>30 1 * * SUN</code><br>Europe/Lisbon | At 01:30, only on Sunday |' "$GITHUB_STEP_SUMMARY"
   grep -qF 'GitHub runs workflow schedules in UTC' "$GITHUB_STEP_SUMMARY"
   grep -qF '1 unchanged expression skipped · requests used: 8' "$GITHUB_STEP_SUMMARY"
   [[ $(comment_body post) == "<!-- cadence-action -->"* ]]
@@ -179,7 +180,7 @@ comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
 
 @test "the comment is updated in place on the next run" {
   change
-  jq -n '[{id: 5, body: "unrelated"}, {id: 42, body: "<!-- cadence-action -->\nold"}]' > "$MOCK_DIR/gh_comments.json"
+  jq -n '[{id: 5, user: {login: "someone"}, body: "unrelated"}, {id: 42, user: {login: "github-actions[bot]"}, body: "<!-- cadence-action -->\nold"}]' > "$MOCK_DIR/gh_comments.json"
   run_action
   grep -q '^PATCH repos/acme/app/issues/comments/42$' "$MOCK_DIR/github.log"
   ! grep -q '^POST ' "$MOCK_DIR/github.log" || false
@@ -449,4 +450,91 @@ comment_body() { jq -r '.body' "$MOCK_DIR/gh_$1.json"; }
   INPUT_CRON_PATHS_DIALECT=vixie run_action
   [ "$status" -eq 1 ]; [[ $output == *"cron-paths-dialect must be"* ]]
   [ ! -f "$MOCK_DIR/requests.log" ]
+}
+
+# ---------- API text in workflow commands, outputs and Markdown ----------
+
+EVIL=$'bad\n::add-mask::pwned\n::set-output name=x::y %0A'
+
+@test "401 message with a newline and ::add-mask:: is escaped in the workflow command" {
+  workflow "0 6 * * *"
+  echo 401 > "$MOCK_DIR/status_validate"
+  jq -nc --arg m "$EVIL" '{message: $m}' > "$MOCK_DIR/body_401"
+  run_action
+  [ "$status" -eq 1 ]
+  [[ $output == *"HTTP 401: bad%0A::add-mask::pwned%0A::set-output name=x::y %250A"* ]]
+  ! grep -q '^::add-mask::pwned' <<<"$output" || false
+  ! grep -q '^::set-output' <<<"$output" || false
+  grep -qx '::add-mask::test-key' <<<"$output"
+}
+
+@test "an invalid-expression reason with workflow commands is escaped in annotations and Markdown" {
+  workflow "0 6 * * *"
+  echo 200 > "$MOCK_DIR/status_validate"
+  jq -nc --arg m "$EVIL <img src=x> a|b \`c\`" '{valid: false, error: {message: $m}}' > "$MOCK_DIR/body_200"
+  run_action
+  [[ $output == *"::error file=.github/workflows/new.yml,line=3,title=Invalid cron expression::0 6 * * *: bad%0A::add-mask::pwned%0A::set-output name=x::y %250A"* ]]
+  ! grep -q '^::add-mask::pwned' <<<"$output" || false
+  ! grep -q '^::set-output' <<<"$output" || false
+  grep -qF '&lt;img src=x&gt; a\|b &#96;c&#96;' "$GITHUB_STEP_SUMMARY"
+  ! grep -q '<img' "$GITHUB_STEP_SUMMARY" || false
+  [ "$(grep -c '^::set-output' "$GITHUB_STEP_SUMMARY" || true)" = 0 ]
+}
+
+@test "a file name with a comma or :: cannot forge annotation properties" {
+  source "$ROOT/scripts/lib.sh"
+  run wf_file warning $'a,b:c::d\ne' "100%"
+  [ "$output" = "::warning file=a%2Cb%3Ac%3A%3Ad%0Ae::100%25" ]
+}
+
+@test "outputs use the heredoc form with a random delimiter, and a hostile quota header is dropped" {
+  workflow "0 6 * * *"
+  echo '5x%0A::add-mask::x' > "$MOCK_DIR/quota"
+  run_action
+  ! grep -qx 'evil=1' "$GITHUB_OUTPUT" || false
+  ! grep -q '^[a-z-]*=' "$GITHUB_OUTPUT" || false
+  [ "$(grep -c '<<ghadelim_' "$GITHUB_OUTPUT")" = 7 ]
+  [ "$(out passed)" = true ]
+  [ -z "$(out quota-remaining)" ]
+}
+
+@test "the comment is looked up only among the token's own comments" {
+  change
+  jq -n '[{id: 42, user: {login: "mallory"}, body: "<!-- cadence-action -->\nfake"}]' > "$MOCK_DIR/gh_comments.json"
+  run_action
+  ! grep -q '^PATCH ' "$MOCK_DIR/github.log" || false
+  grep -q '^POST repos/acme/app/issues/7/comments$' "$MOCK_DIR/github.log"
+}
+
+@test "when updating the comment fails, a new comment is posted" {
+  change
+  jq -n '[{id: 42, user: {login: "github-actions[bot]"}, body: "<!-- cadence-action -->\nold"}]' > "$MOCK_DIR/gh_comments.json"
+  echo 403 > "$MOCK_DIR/gh_patch_status"
+  run_action
+  grep -q '^PATCH repos/acme/app/issues/comments/42$' "$MOCK_DIR/github.log"
+  grep -q '^POST repos/acme/app/issues/7/comments$' "$MOCK_DIR/github.log"
+  [ "$(out comment-url)" = "https://github.com/acme/app/pull/7#issuecomment-99" ]
+}
+
+@test "a tracked symlink is not followed" {
+  cd "$REPO"; ln -s ../../../ops/crontab .github/workflows/link.yml 2>/dev/null || ln -s /etc/hosts .github/workflows/link.yml
+  HEAD="$(commit link)"; pr_event
+  run "$ROOT/scripts/run.sh"
+  [[ $output != *link.yml* ]]
+}
+
+@test "keys are not on curl's command line" {
+  workflow "0 6 * * *"
+  run_action
+  [ -s "$MOCK_DIR/argv.log" ]
+  ! grep -q 'test-key\|gh-token' "$MOCK_DIR/argv.log" || false
+  grep -qx 'X-RapidAPI-Key: test-key' "$MOCK_DIR/cadence_calls.log"
+}
+
+@test "test overrides are ignored outside the test harness" {
+  workflow "0 6 * * *"
+  export CADENCE_TEST_HARNESS=0 CADENCE_API_URL=http://evil.example CADENCE_AUTH_HEADER="X-Evil: 1"
+  run_action
+  ! grep -q evil "$MOCK_DIR/cadence_calls.log" || false
+  grep -q 'https://cadence-cron-expression-api.p.rapidapi.com/v1/cron/validate' "$MOCK_DIR/cadence_calls.log"
 }
