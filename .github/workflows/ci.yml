@@ -42,6 +42,7 @@ jobs:
         id: check
         uses: ./
         env:
+          CADENCE_TEST_HARNESS: "1"
           CADENCE_NOW: "1794268800"   # the start the responses were recorded with
         with:
           rapidapi-key: smoke-test-key

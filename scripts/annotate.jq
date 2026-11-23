@@ -5,7 +5,7 @@ include "time";
 def esc_data: gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A");
 def esc_prop: esc_data | gsub(":"; "%3A") | gsub(","; "%2C");
 def cmd($level; $file; $line; $title; $msg):
-  "::\($level) file=\($file | esc_prop)\(if $line then ",line=\($line)" else "" end),title=\($title | esc_prop)::\($msg | esc_data)";
+  "::\($level) file=\($file | esc_prop)\(if ($line | type) == "number" then ",line=\($line | floor)" else "" end),title=\($title | esc_prop)::\($msg | esc_data)";
 
 (
   [ .[] | select(.status == "invalid" or .status == "failed")

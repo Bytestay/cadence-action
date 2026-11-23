@@ -20,54 +20,53 @@ RESULTS="$WORK/results.jsonl"
 : > "$RESULTS"
 mkdir -p "$WORK/cache"
 
-output() { printf '%s=%s\n' "$1" "$2" >> "$OUT"; }
 flag() { # flag NAME VALUE → validates a true/false input
-  case "$2" in true|false) ;; *) echo "::error::$1 must be true or false (got '$2')."; exit 1;; esac
+  case "$2" in true|false) ;; *) wf error "$1 must be true or false (got '$2')."; exit 1;; esac
 }
 number() { # number NAME VALUE MAX
-  if [[ ! $2 =~ ^[0-9]+$ ]] || (( $2 > $3 )); then echo "::error::$1 must be a whole number from 0 to $3."; exit 1; fi
+  if [[ ! $2 =~ ^[0-9]+$ ]] || (( $2 > $3 )); then wf error "$1 must be a whole number from 0 to $3."; exit 1; fi
 }
 
 # 1. Preflight
 for tool in curl jq git yq; do
-  command -v "$tool" >/dev/null || { echo "::error::Cadence needs $tool on the runner."; exit 1; }
+  command -v "$tool" >/dev/null || { wf error "Cadence needs $tool on the runner."; exit 1; }
 done
-yq --version 2>/dev/null | grep -q mikefarah || { echo "::error::Cadence needs mikefarah's yq (v4) on the runner."; exit 1; }
+yq --version 2>/dev/null | grep -q mikefarah || { wf error "Cadence needs mikefarah's yq (v4) on the runner."; exit 1; }
 CHECK_ALL="${INPUT_CHECK_ALL:-false}"; flag check-all "$CHECK_ALL"
 COMMENT="${INPUT_COMMENT:-true}"; flag comment "$COMMENT"
 case "${INPUT_FAIL_ON:-invalid}" in invalid|warning|never) ;; *)
-  echo "::error::fail-on must be invalid, warning or never."; exit 1;; esac
+  wf error "fail-on must be invalid, warning or never."; exit 1;; esac
 FAIL_ON="${INPUT_FAIL_ON:-invalid}"
 case "${INPUT_ON_QUOTA_EXCEEDED:-warn}" in warn|fail) ;; *)
-  echo "::error::on-quota-exceeded must be warn or fail."; exit 1;; esac
+  wf error "on-quota-exceeded must be warn or fail."; exit 1;; esac
 case "${INPUT_CRON_PATHS_DIALECT:-unix}" in unix|seconds|quartz|aws) ;; *)
-  echo "::error::cron-paths-dialect must be unix, seconds, quartz or aws."; exit 1;; esac
+  wf error "cron-paths-dialect must be unix, seconds, quartz or aws."; exit 1;; esac
 MAX_REQ="${INPUT_MAX_REQUESTS:-15}"; number max-requests "$MAX_REQ" 1000
 NEXT_RUNS="${INPUT_NEXT_RUNS:-3}"; number next-runs "$NEXT_RUNS" 20
 MIN_INTERVAL="${INPUT_MIN_INTERVAL:-5}"; number min-interval "$MIN_INTERVAL" 1440
 LOCALE="$(trim "${INPUT_LOCALE:-en}")"
 [[ $LOCALE =~ ^(en|pt|es|fr|de|it|nl)([-_][A-Za-z]{2})?$ ]] || {
-  echo "::error::locale must be one of en, pt, es, fr, de, it, nl (got '$LOCALE')."; exit 1; }
+  wf error "locale must be one of en, pt, es, fr, de, it, nl (got '$LOCALE')."; exit 1; }
 TIMEZONE="$(trim "${INPUT_TIMEZONE:-UTC}")"; [[ -z $TIMEZONE ]] && TIMEZONE=UTC
-zone_known "$TIMEZONE" || { echo "::error::timezone: unknown time zone '$TIMEZONE' (use an IANA name such as Europe/Lisbon)."; exit 1; }
+zone_known "$TIMEZONE" || { wf error "timezone: unknown time zone '$TIMEZONE' (use an IANA name such as Europe/Lisbon)."; exit 1; }
 INPUT_CRON_PATHS_TIMEZONE="$(trim "${INPUT_CRON_PATHS_TIMEZONE:-UTC}")"
 [[ -z $INPUT_CRON_PATHS_TIMEZONE ]] && INPUT_CRON_PATHS_TIMEZONE=UTC
 export INPUT_CRON_PATHS_TIMEZONE
 
 if [[ -n ${INPUT_RAPIDAPI_KEY:-} && -n ${INPUT_API_MARKET_KEY:-} ]]; then
-  echo "::error::Set rapidapi-key or api-market-key, not both."; exit 1
+  wf error "Set rapidapi-key or api-market-key, not both."; exit 1
 fi
 if [[ -z ${INPUT_RAPIDAPI_KEY:-}${INPUT_API_MARKET_KEY:-} && -z ${CADENCE_AUTH_HEADER:-} ]]; then
   if [[ ${GITHUB_EVENT_NAME:-} == pull_request* ]]; then
-    echo "::warning::Cadence skipped: no rapidapi-key or api-market-key. Pull requests from forks don't get repository secrets."
+    wf warning "Cadence skipped: no rapidapi-key or api-market-key. Pull requests from forks don't get repository secrets."
     output passed true; output requests-used 0
     exit 0
   fi
-  echo "::error::No API key: set rapidapi-key or api-market-key. Subscribe to the Cadence API (free Basic plan) at $RAPIDAPI_PRICING or $API_MARKET_PRICING and store the key as a secret."
+  wf error "No API key: set rapidapi-key or api-market-key. Subscribe to the Cadence API (free Basic plan) at $RAPIDAPI_PRICING or $API_MARKET_PRICING and store the key as a secret."
   exit 1
 fi
-[[ -n ${INPUT_RAPIDAPI_KEY:-} ]] && echo "::add-mask::$INPUT_RAPIDAPI_KEY"
-[[ -n ${INPUT_API_MARKET_KEY:-} ]] && echo "::add-mask::$INPUT_API_MARKET_KEY"
+[[ -n ${INPUT_RAPIDAPI_KEY:-} ]] && wf add-mask "$INPUT_RAPIDAPI_KEY"
+[[ -n ${INPUT_API_MARKET_KEY:-} ]] && wf add-mask "$INPUT_API_MARKET_KEY"
 
 PR=""
 if [[ ${GITHUB_EVENT_NAME:-} == pull_request* && -f ${GITHUB_EVENT_PATH:-} ]]; then
@@ -83,7 +82,7 @@ BASE_COMMIT=""
 if [[ -n $BASE_REF ]]; then
   BASE_COMMIT="$(resolve_base "$BASE_REF")"
 elif [[ $CHECK_ALL != true ]]; then
-  echo "::notice::No base to compare against for this event (set base-ref): every cron expression found is checked."
+  wf notice "No base to compare against for this event (set base-ref): every cron expression found is checked."
 fi
 
 # 3. Up to three requests per new or changed expression: validate, explain, next
@@ -103,7 +102,7 @@ api() { # api ENDPOINT BODY_FILE → sets $code and leaves the response in $WORK
     tries=$((tries + 1)); sleep "${CADENCE_RATE_DELAY:-$tries}"
     code="$(call_api "$1" "$2" "$WORK/resp.json" "$WORK/headers.txt")"; requests=$((requests + 1))
   done
-  local q; q="$(header_value "$WORK/headers.txt" x-ratelimit-requests-remaining)"; [[ -n $q ]] && quota="$q"
+  local q; q="$(header_value "$WORK/headers.txt" x-ratelimit-requests-remaining)"; [[ $q =~ ^[0-9]{1,9}$ ]] && quota="$q"
   return 0
 }
 # api_error RESULT_FILE: any status the caller didn't handle. Writes the result and may stop the run.
@@ -113,23 +112,23 @@ api_error() {
   if [[ $code == 400 ]] && grep -qi 'api-market-key' "$WORK/resp.json" 2>/dev/null; then kind=401; fi
   case "$kind" in
     401|403)
-      detail="$(jq -r '.message // empty' "$WORK/resp.json" 2>/dev/null || true)"
-      echo "::error::Cadence refused the key (HTTP $code${detail:+: $detail}). Subscribe (free plan) at $PRICING."
+      detail="$(jq -r '.message // empty | tostring' "$WORK/resp.json" 2>/dev/null || true)"; detail="${detail:0:200}"
+      wf error "Cadence refused the key (HTTP $code${detail:+: $detail}). Subscribe (free plan) at $PRICING."
       stop="key refused" ;;
     429)
       if ! quota_429; then
-        echo "::warning::Cadence rate limit (HTTP 429) after 3 retries: the remaining expressions were not checked. Your build is not failed because of it."
+        wf warning "Cadence rate limit (HTTP 429) after 3 retries: the remaining expressions were not checked. Your build is not failed because of it."
         stop="rate limited"
         jq -cn --arg r "$stop (HTTP $code)" '{status: "not_analysed", reason: $r}' > "$res"; return 0
       fi
       if [[ ${INPUT_ON_QUOTA_EXCEEDED:-warn} == fail ]]; then
-        echo "::error::Cadence monthly quota exhausted. Upgrade at $PRICING."
+        wf error "Cadence monthly quota exhausted. Upgrade at $PRICING."
         jq -cn '{status: "failed", reason: "quota exhausted (HTTP 429)"}' > "$res"; stop="quota exhausted"; return 0
       fi
-      echo "::warning::Cadence monthly quota exhausted: the remaining expressions were not checked. Upgrade at $PRICING."
+      wf warning "Cadence monthly quota exhausted: the remaining expressions were not checked. Upgrade at $PRICING."
       stop="quota exhausted" ;;
     *)
-      echo "::warning::Cadence API unavailable (HTTP $code): the remaining expressions were not checked. Your build is not failed because of it."
+      wf warning "Cadence API unavailable (HTTP $code): the remaining expressions were not checked. Your build is not failed because of it."
       stop="API unavailable" ;;
   esac
   jq -cn --arg r "$stop (HTTP $code)" '{status: "not_analysed", reason: $r}' > "$res"
@@ -210,7 +209,7 @@ check() {
 }
 
 while IFS=$'\t' read -r kind f; do
-  [[ -z $f || ! -f $f ]] && continue
+  [[ -z $f || ! -f $f || -L $f ]] && continue
   extract "$kind" "$f" > "$WORK/head.jsonl"
   [[ -s $WORK/head.jsonl ]] || continue
   echo '[]' > "$WORK/base-keys.json"
@@ -220,7 +219,7 @@ while IFS=$'\t' read -r kind f; do
     if [[ $rc -eq 0 ]]; then
       extract "$kind" "$base" | jq -s 'map("\(.dialect)|\(.zone)|\(.expression)")' > "$WORK/base-keys.json"
     elif [[ $rc -eq 2 ]]; then
-      echo "::warning file=$f::Couldn't read the base version of this file: all its cron expressions are checked."
+      wf_file warning "$f" "Couldn't read the base version of this file: all its cron expressions are checked."
     fi
   fi
   while IFS= read -r cron; do
@@ -254,7 +253,7 @@ TZ="$TIMEZONE" jq -L "$HERE" -s -r --arg fail_on "$FAIL_ON" --arg tz "$TIMEZONE"
 
 # 6. Report: job summary, and a pull request comment that is updated on every run
 if [[ -n $quota && $quota =~ ^[0-9]+$ ]] && (( quota < 6 )); then
-  echo "::warning::Only $quota Cadence requests left this month. Plans: $PRICING"
+  wf warning "Only $quota Cadence requests left this month. Plans: $PRICING"
 fi
 head_sha="${GITHUB_SHA:-}"
 [[ -n $PR ]] && head_sha="$(jq -r '.pull_request.head.sha // empty' "$GITHUB_EVENT_PATH")"
@@ -269,23 +268,32 @@ cat "$WORK/report.md" >> "$SUMMARY"
 comment_url=""
 if [[ $COMMENT == true && -n $PR ]]; then
   existing=""
+  # Only a comment written by the token's own user counts as ours: github-actions[bot] for the default token,
+  # else whoever GET /user says (an installation token gets 403 there).
+  author="github-actions[bot]"
+  if [[ $(gh_api GET user "$WORK/me.json") == 200 ]]; then
+    me="$(jq -r '.login // empty' "$WORK/me.json" 2>/dev/null || true)"; [[ -n $me ]] && author="$me"
+  fi
   for page in 1 2 3 4 5 6 7 8 9 10; do
     [[ $(gh_api GET "repos/${GITHUB_REPOSITORY:-}/issues/$PR/comments?per_page=100&page=$page" "$WORK/comments.json") == 200 ]] || break
-    existing="$(jq -r --arg m "$MARKER" 'map(select(.body | contains($m))) | first | .id // empty' "$WORK/comments.json")"
+    existing="$(jq -r --arg m "$MARKER" --arg a "$author" \
+      'map(select(.user.login == $a and (.body // "" | startswith($m)))) | first | .id // empty' "$WORK/comments.json")"
     [[ -n $existing || $(jq 'length' "$WORK/comments.json") -lt 100 ]] && break
   done
   worth="$(jq -s 'any(.[]; .status != "unchanged")' "$RESULTS")"
   if [[ -n $existing || $worth == true ]]; then
     { printf '%s\n' "$MARKER"; cat "$WORK/report.md"; } | jq -Rs '{body: .}' > "$WORK/comment.json"
+    code=000
     if [[ -n $existing ]]; then
       code="$(gh_api PATCH "repos/${GITHUB_REPOSITORY:-}/issues/comments/$existing" "$WORK/comment-resp.json" "$WORK/comment.json")"
-    else
+    fi
+    if [[ ! $code =~ ^2 ]]; then # no comment of ours, or the update was refused: post a new one
       code="$(gh_api POST "repos/${GITHUB_REPOSITORY:-}/issues/$PR/comments" "$WORK/comment-resp.json" "$WORK/comment.json")"
     fi
     if [[ $code =~ ^2 ]]; then
       comment_url="$(jq -r '.html_url // empty' "$WORK/comment-resp.json")"
     else
-      echo "::notice::Couldn't comment on the pull request (HTTP $code): give the job \`pull-requests: write\`. The report is in the job summary."
+      wf notice "Couldn't comment on the pull request (HTTP $code): give the job \`pull-requests: write\`. The report is in the job summary."
     fi
   fi
 fi
@@ -307,7 +315,7 @@ if [[ $passed != true ]]; then
   [[ $stop == "key refused" ]] && why+=("the API key was refused")
   if (( ${#why[@]} > 0 )); then
     msg="$(IFS=';'; echo "${why[*]}")"
-    echo "::error title=Cadence check failed::${msg//;/; }. The report lists every expression."
+    printf '::error title=Cadence check failed::%s\n' "$(esc_data "${msg//;/; }. The report lists every expression.")"
   fi
 fi
 [[ $passed == true ]]

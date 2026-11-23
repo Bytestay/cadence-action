@@ -1,13 +1,17 @@
 # Input: {results, passed, fail_on, requests, quota, tz, next_runs, blob, pr}; run jq with TZ set to .tz.
 # Output: Markdown for the job summary and the pull request comment.
 include "time";
-def cell: tostring | gsub("\\|"; "\\|") | gsub("\n"; " ");
+# cell: untrusted text for a Markdown table cell. HTML specials and backticks become entities, | is escaped,
+# newlines become spaces. Code is written as <code>, never as a backtick span, so nothing can close it early.
+def cell: tostring | gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;") | gsub("`"; "&#96;")
+  | gsub("\\|"; "\\|") | gsub("\r?\n|\r"; " ");
+def code: "<code>\(cell)</code>";
 def plural($n; $word): "\($n) \($word)\(if $n == 1 then "" else "s" end)";
 def icon: if .status == "invalid" or .status == "failed" then "❌"
   elif .status == "checked" then (if (.warnings | length) > 0 then "⚠️" else "✅" end) else "⏭️" end;
-def where($blob): "[`\(.file):\(.line)`](\($blob)/\(.file | @uri | gsub("%2F"; "/"))#L\(.line))"
-  + (if (.name // "") != "" then "<br>`\(.name | cell)`" else "" end);
-def zone: if .kind == "workflow" then "UTC (GitHub)" elif .zone_default then "UTC (no `timeZone`)" else .zone end;
+def where($blob): "[\("\(.file):\(.line)" | code)](\($blob)/\(.file | @uri | gsub("%2F"; "/") | gsub("\\("; "%28") | gsub("\\)"; "%29"))#L\(.line | tostring | gsub("[^0-9]"; "")))"
+  + (if (.name // "") != "" then "<br>\(.name | code)" else "" end);
+def zone: if .kind == "workflow" then "UTC (GitHub)" elif .zone_default then "UTC (no timeZone)" else .zone end;
 
 . as $r
 | ([.results[] | select(.status != "unchanged")]) as $rows
@@ -23,7 +27,7 @@ def zone: if .kind == "workflow" then "UTC (GitHub)" elif .zone_default then "UT
     "| | Where | Expression | Meaning | Next runs (\($r.tz)) | Warnings |",
     "|---|---|---|---|---|---|",
     ($rows[] |
-      "| \(icon) | \(where($r.blob)) | `\(.expression | cell)`<br>\(zone | cell) | "
+      "| \(icon) | \(where($r.blob)) | \(.expression | code)<br>\(zone | cell) | "
       + (if .status == "checked" then (.description // "" | cell)
          elif .status == "invalid" or .status == "failed" then "**Invalid:** \(.reason | cell)"
          else "Not checked: \(.reason | cell)" end)
