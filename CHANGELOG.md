@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/Bytestay/cadence-action/compare/v1.1.0...v1.1.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* escape API text in workflow commands ([#12](https://github.com/Bytestay/cadence-action/issues/12)) ([254b154](https://github.com/Bytestay/cadence-action/commit/254b154d4579d280eb2dc1440500539dee9dafd6))
+
 ## [1.1.0](https://github.com/Bytestay/cadence-action/compare/v1.0.0...v1.1.0) (2026-11-09)
 
 
